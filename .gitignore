@@ -1,0 +1,6 @@
+# model data
+/data/raw
+
+# models
+/models/*.pkl
+/models/*.h5
