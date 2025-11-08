@@ -1,6 +1,8 @@
-numpy
-scikit-learn
-tensorflow
-matplotlib
-seaborn
+numpy~=2.3.4
+scikit-learn~=1.7.2
+tensorflow~=2.20.0
+matplotlib~=3.10.7
+seaborn~=0.13.2
 flask
+joblib~=1.5.2
+pillow~=12.0.0

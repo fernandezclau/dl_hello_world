@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 import joblib
@@ -9,13 +10,19 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
-# Cargar datos y predicciones
-y_test = np.load("../results/y_test.npy")
-lr_pred = np.load("../results/lr_predictions.npy")
-nn_pred = np.load("../results/nn_predictions.npy")
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+
+results_dir = os.path.join(project_root, "results")
+models_dir = os.path.join(project_root, "models")
+
+y_test = np.load(os.path.join(results_dir, "y_test.npy"))
+lr_pred = np.load(os.path.join(results_dir, "lr_predictions.npy"))
+nn_pred = np.load(os.path.join(results_dir, "nn_predictions.npy"))
 
 # Cargar métricas
-with open("../results/metrics.txt") as f:
+with open(os.path.join(results_dir, "metrics.txt")) as f:
     lines = f.readlines()
     lr_acc = float(lines[0].split()[-1])
     nn_acc = float(lines[1].split()[-1])
@@ -68,8 +75,8 @@ st.pyplot(fig)
 
 @st.cache_resource
 def load_models():
-    lr = joblib.load("../models/logistic_regression.pkl")
-    nn = load_model("../models/neural_network.h5")
+    lr = joblib.load(os.path.join(models_dir, "logistic_regression.pkl"))
+    nn = load_model(os.path.join(models_dir, "neural_network.h5"))
     return lr, nn
 
 lr_model, nn_model = load_models()
@@ -138,9 +145,9 @@ st.subheader("📊 Resultados en el dataset de prueba (MNIST)")
 
 # Cargar datos de prueba y predicciones guardadas
 try:
-    y_test = np.load("../results/y_test.npy")
-    lr_pred_test = np.load("../results/lr_predictions.npy")
-    nn_pred_test = np.load("../results/nn_predictions.npy")
+    y_test = np.load(os.path.join(results_dir, "y_test.npy"))
+    lr_pred_test = np.load(os.path.join(results_dir, "lr_predictions.npy"))
+    nn_pred_test = np.load(os.path.join(results_dir, "nn_predictions.npy"))
 
     lr_acc = np.mean(lr_pred_test == y_test)
     nn_acc = np.mean(nn_pred_test == y_test)

@@ -33,3 +33,5 @@
     ├── train.py                       # Script principal para entrenar ambos modelos
     ├── requirements.txt               # Dependencias
     └── README.md                      # Instrucciones para ejecutar el proyecto
+
+streamlit run app/app.py
