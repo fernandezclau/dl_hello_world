@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Classifier Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #37352f;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            font-family: 'Source Code Pro', monospace;
+            font-size: 10.5pt;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e9e9e7;
+            padding: 3rem 2rem 2rem 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #37352f;
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: #787774;
+            font-weight: 400;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0.5rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin: 0.5rem 0 1.5rem 0;
+            border-bottom: 1px solid #e9e9e7;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #787774;
+            transition: all 0.15s;
+        }
+
+        .tab:hover {
+            color: #37352f;
+            background-color: rgba(55, 53, 47, 0.03);
+        }
+
+        .tab.active {
+            color: #37352f;
+            border-bottom-color: #37352f;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            background: #ffffff;
+            border: 1px solid #e9e9e7;
+            border-radius: 3px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            color: #37352f;
+        }
+
+        .card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #37352f;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: #fafaf9;
+            border: 1px solid #e9e9e7;
+            border-radius: 3px;
+            padding: 1.5rem;
+            transition: background-color 0.15s;
+        }
+
+        .metric-card:hover {
+            background: #f7f6f3;
+        }
+
+        .metric-label {
+            font-size: 0.8125rem;
+            color: #787774;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #37352f;
+        }
+
+        /* Grid Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Button */
+        .btn {
+            background: #37352f;
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1.5rem;
+            border-radius: 3px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn:hover {
+            background: #2f2e2a;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #37352f;
+            border: 1px solid #e9e9e7;
+        }
+
+        .btn-secondary:hover {
+            background: #fafaf9;
+        }
+
+        /* Canvas */
+        .canvas-container {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+
+        #drawCanvas {
+            border: 1px solid #e9e9e7;
+            border-radius: 3px;
+            cursor: crosshair;
+            background: white;
+        }
+
+        .canvas-controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        /* Predictions */
+        .prediction-box {
+            background: #fafaf9;
+            border: 1px solid #e9e9e7;
+            border-radius: 3px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .prediction-result {
+            font-size: 3rem;
+            font-weight: 700;
+            text-align: center;
+            margin: 1rem 0;
+            color: #37352f;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9e9e7;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: #37352f;
+            transition: width 0.5s ease;
+        }
+
+        .confidence-text {
+            font-size: 0.875rem;
+            color: #787774;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #e9e9e7;
+            border-top: 3px solid #37352f;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Images */
+        .chart-image {
+            width: 100%;
+            border-radius: 3px;
+            border: 1px solid #e9e9e7;
+        }
+
+        /* Table */
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e9e9e7;
+        }
+
+        .report-table th {
+            background: #fafaf9;
+            font-weight: 600;
+            color: #37352f;
+            font-size: 0.8125rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .report-table tr:hover {
+            background: #fafaf9;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: #fafaf9;
+            border-left: 3px solid #37352f;
+            padding: 1rem 1.25rem;
+            border-radius: 3px;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+            color: #787774;
+        }
+
+        .info-box strong {
+            color: #37352f;
+        }
+
+        .warning-box {
+            background: #fafaf9;
+            border-left: 3px solid #787774;
+            padding: 1rem 1.25rem;
+            border-radius: 3px;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+            color: #787774;
+        }
+
+        .section-divider {
+            border: 0;
+            height: 1px;
+            background: #e9e9e7;
+            margin: 2.5rem 0;
+        }
+
+        .processed-image {
+            width: 140px;
+            height: 140px;
+            border: 1px solid #e9e9e7;
+            border-radius: 3px;
+            display: block;
+            margin: 0 auto 1rem auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .canvas-container {
+                flex-direction: column;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Text utilities */
+        .text-muted {
+            color: #787774;
+            font-size: 0.875rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <h1>MNIST Classifier</h1>
+            <p>Comparative analysis between Neural Network and Logistic Regression models</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('evaluation')">Model Evaluation</button>
+            <button class="tab" onclick="switchTab('prediction')">Interactive Prediction</button>
+            <button class="tab" onclick="switchTab('analysis')">Detailed Analysis</button>
+        </div>
+
+        <!-- Tab 1: Evaluación -->
+        <div id="evaluation" class="tab-content active">
+            <div class="card">
+                <h2>Model Evaluation</h2>
+                <div class="info-box">
+                    <strong>Dataset:</strong> MNIST handwritten digits<br>
+                    <strong>Training samples:</strong> 60,000<br>
+                    <strong>Test samples:</strong> 10,000<br>
+                    <strong>Classes:</strong> 10 digits (0-9)
+                </div>
+                <button class="btn" onclick="evaluateModels()">Run Evaluation</button>
+            </div>
+
+            <div id="loadingEval" class="loading">
+                <div class="spinner"></div>
+                <p class="text-muted">Evaluating models...</p>
+            </div>
+
+            <div id="metricsSection" style="display: none;">
+                <!-- Métricas principales -->
+                <div class="card">
+                    <h2>Performance Metrics</h2>
+                    <div class="metrics-grid" id="metricsGrid"></div>
+                </div>
+
+                <hr class="section-divider">
+
+                <!-- Matrices de confusión -->
+                <div class="card">
+                    <h2>Confusion Matrices</h2>
+                    <div class="grid-2">
+                        <div>
+                            <h3>Deep Learning</h3>
+                            <img id="cmDL" class="chart-image" alt="Confusion Matrix DL">
+                        </div>
+                        <div>
+                            <h3>Logistic Regression</h3>
+                            <img id="cmLR" class="chart-image" alt="Confusion Matrix LR">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="section-divider">
+
+                <!-- Comparación -->
+                <div class="card">
+                    <h2>Metrics Comparison</h2>
+                    <img id="comparisonChart" class="chart-image" alt="Comparison Chart">
+                </div>
+
+                <hr class="section-divider">
+
+                <!-- Métricas por clase -->
+                <div class="card">
+                    <h2>Per-Class Metrics</h2>
+                    <div class="grid-2">
+                        <div>
+                            <h3>Deep Learning</h3>
+                            <img id="perClassDL" class="chart-image" alt="Per Class DL">
+                        </div>
+                        <div>
+                            <h3>Logistic Regression</h3>
+                            <img id="perClassLR" class="chart-image" alt="Per Class LR">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Predicción -->
+        <div id="prediction" class="tab-content">
+            <div class="card">
+                <h2>Draw Your Digit</h2>
+                <p class="text-muted mb-2">Draw a digit from 0 to 9 on the canvas below and get predictions from both models</p>
+
+                <div class="canvas-container">
+                    <div>
+                        <canvas id="drawCanvas" width="280" height="280"></canvas>
+                        <div class="canvas-controls">
+                            <button class="btn" onclick="predictDrawing()">Predict</button>
+                            <button class="btn btn-secondary" onclick="clearCanvas()">Clear Canvas</button>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1;">
+                        <div id="predictionResults" style="display: none;">
+                            <div class="card">
+                                <h3 class="text-center">Processed Image (28×28)</h3>
+                                <img id="processedImage" class="processed-image">
+                            </div>
+
+                            <div class="prediction-box">
+                                <h3>Deep Learning Model</h3>
+                                <div class="prediction-result" id="predDL">-</div>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" id="confDL" style="width: 0%"></div>
+                                </div>
+                                <div class="confidence-text" id="confTextDL">-</div>
+                            </div>
+
+                            <div class="prediction-box">
+                                <h3>Logistic Regression Model</h3>
+                                <div class="prediction-result" id="predLR">-</div>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" id="confLR" style="width: 0%"></div>
+                                </div>
+                                <div class="confidence-text" id="confTextLR">-</div>
+                            </div>
+                        </div>
+
+                        <div id="loadingPred" class="loading">
+                            <div class="spinner"></div>
+                            <p class="text-muted">Processing prediction...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Análisis -->
+        <div id="analysis" class="tab-content">
+            <div class="card">
+                <h2>Detailed Analysis</h2>
+                <div class="warning-box">
+                    <strong>Note:</strong> Run the model evaluation first in the "Model Evaluation" tab to view detailed reports.
+                </div>
+
+                <div id="reportSection" style="display: none;">
+                    <h3>Classification Report — Deep Learning</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="report-table" id="reportTableDL"></table>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h3>Classification Report — Logistic Regression</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="report-table" id="reportTableLR"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 15;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch events for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            lastX = touch.clientX - rect.left;
+            lastY = touch.clientY - rect.top;
+            isDrawing = true;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+        });
+
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('predictionResults').style.display = 'none';
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Evaluate models
+        async function evaluateModels() {
+            document.getElementById('loadingEval').style.display = 'block';
+            document.getElementById('metricsSection').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/evaluate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Display metrics
+                    displayMetrics(data.metrics_dl, data.metrics_lr);
+
+                    // Display charts
+                    document.getElementById('cmDL').src = 'data:image/png;base64,' + data.confusion_matrix_dl;
+                    document.getElementById('cmLR').src = 'data:image/png;base64,' + data.confusion_matrix_lr;
+                    document.getElementById('comparisonChart').src = 'data:image/png;base64,' + data.comparison_chart;
+                    document.getElementById('perClassDL').src = 'data:image/png;base64,' + data.per_class_dl;
+                    document.getElementById('perClassLR').src = 'data:image/png;base64,' + data.per_class_lr;
+
+                    // Display reports
+                    displayReport(data.report_dl, 'reportTableDL');
+                    displayReport(data.report_lr, 'reportTableLR');
+
+                    document.getElementById('metricsSection').style.display = 'block';
+                    document.getElementById('reportSection').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error evaluating models: ' + error);
+            } finally {
+                document.getElementById('loadingEval').style.display = 'none';
+            }
+        }
+
+        function displayMetrics(metricsDL, metricsLR) {
+            const grid = document.getElementById('metricsGrid');
+            grid.innerHTML = '';
+
+            const metrics = ['Accuracy', 'Precision', 'Recall', 'F1-Score'];
+
+            metrics.forEach(metric => {
+                const valueDL = (metricsDL[metric] * 100).toFixed(2);
+                const valueLR = (metricsLR[metric] * 100).toFixed(2);
+
+                grid.innerHTML += `
+                    <div class="metric-card">
+                        <div class="metric-label">${metric} — DL</div>
+                        <div class="metric-value">${valueDL}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">${metric} — LR</div>
+                        <div class="metric-value">${valueLR}%</div>
+                    </div>
+                `;
+            });
+        }
+
+        function displayReport(report, tableId) {
+            const table = document.getElementById(tableId);
+            let html = '<tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1-Score</th><th>Support</th></tr>';
+
+            for (let i = 0; i < 10; i++) {
+                const classData = report[i.toString()];
+                html += `
+                    <tr>
+                        <td><strong>${i}</strong></td>
+                        <td>${classData.precision.toFixed(3)}</td>
+                        <td>${classData.recall.toFixed(3)}</td>
+                        <td>${classData['f1-score'].toFixed(3)}</td>
+                        <td>${classData.support}</td>
+                    </tr>
+                `;
+            }
+
+            table.innerHTML = html;
+        }
+
+        // Predict drawing
+        async function predictDrawing() {
+            const imageData = canvas.toDataURL('image/png');
+
+            // Check if canvas is empty
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const isEmpty = !data.some(channel => channel !== 0);
+
+            if (isEmpty) {
+                alert('Please draw something on the canvas first');
+                return;
+            }
+
+            document.getElementById('loadingPred').style.display = 'block';
+            document.getElementById('predictionResults').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image: imageData})
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('processedImage').src = 'data:image/png;base64,' + result.processed_image;
+
+                    document.getElementById('predDL').textContent = result.prediction_dl.class;
+                    document.getElementById('confDL').style.width = (result.prediction_dl.confidence * 100) + '%';
+                    document.getElementById('confTextDL').textContent = 'Confidence: ' + (result.prediction_dl.confidence * 100).toFixed(1) + '%';
+
+                    document.getElementById('predLR').textContent = result.prediction_lr.class;
+                    document.getElementById('confLR').style.width = (result.prediction_lr.confidence * 100) + '%';
+                    document.getElementById('confTextLR').textContent = 'Confidence: ' + (result.prediction_lr.confidence * 100).toFixed(1) + '%';
+
+                    document.getElementById('predictionResults').style.display = 'block';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error predicting: ' + error);
+            } finally {
+                document.getElementById('loadingPred').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

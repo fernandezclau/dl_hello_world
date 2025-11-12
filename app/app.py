@@ -1,160 +1,109 @@
-# app.py
-import streamlit as st
-import numpy as np
+# backend/app.py
+from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask_cors import CORS
 import os
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import load_model
+import numpy as np
 import joblib
-import tensorflow as tf
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
-from PIL import Image
-from streamlit_drawable_canvas import st_canvas
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-
-results_dir = os.path.join(project_root, "results")
-models_dir = os.path.join(project_root, "models")
-
-y_test = np.load(os.path.join(results_dir, "y_test.npy"))
-lr_pred = np.load(os.path.join(results_dir, "lr_predictions.npy"))
-nn_pred = np.load(os.path.join(results_dir, "nn_predictions.npy"))
-
-# Cargar métricas
-with open(os.path.join(results_dir, "metrics.txt")) as f:
-    lines = f.readlines()
-    lr_acc = float(lines[0].split()[-1])
-    nn_acc = float(lines[1].split()[-1])
-
-# Cargar modelos (opcional, solo si quieres hacer predicciones nuevas)
-# lr_model = joblib.load("models/logistic_regression.pkl")
-# nn_model = load_model("models/neural_network.h5")
-
-# Título
-st.title("🔍 Comparación: Regresión Logística vs Red Neuronal (MNIST)")
-st.markdown("Proyecto de comparación en el dataset MNIST de dígitos escritos a mano.")
-
-# Mostrar métricas
-col1, col2 = st.columns(2)
-col1.metric("Regresión Logística", f"{lr_acc:.4f}")
-col2.metric("Red Neuronal", f"{nn_acc:.4f}")
-
-# Mostrar ejemplos del test set
-st.subheader("Ejemplos de clasificación")
-indices = np.random.choice(len(y_test), 5, replace=False)
-
-fig, axes = plt.subplots(1, 5, figsize=(12, 3))
-(x_train, _), (x_test_orig, _) = tf.keras.datasets.mnist.load_data()
-x_test_images = x_test_orig  # Solo para visualizar
-
-for i, idx in enumerate(indices):
-    img = x_test_images[idx]
-    true_label = y_test[idx]
-    lr_label = lr_pred[idx]
-    nn_label = nn_pred[idx]
-
-    axes[i].imshow(img, cmap="gray")
-    axes[i].set_title(f"Verdadero: {true_label}\nLR: {lr_label} | NN: {nn_label}")
-    axes[i].axis("off")
-
-st.pyplot(fig)
-
-# Matrices de confusión
-st.subheader("Matrices de confusión")
-
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-sns.heatmap(confusion_matrix(y_test, lr_pred), annot=False, fmt="d", ax=ax1, cmap="Blues")
-ax1.set_title("Regresión Logística")
-
-sns.heatmap(confusion_matrix(y_test, nn_pred), annot=False, fmt="d", ax=ax2, cmap="Greens")
-ax2.set_title("Red Neuronal")
-
-st.pyplot(fig)
-
-@st.cache_resource
-def load_models():
-    lr = joblib.load(os.path.join(models_dir, "logistic_regression.pkl"))
-    nn = load_model(os.path.join(models_dir, "neural_network.h5"))
-    return lr, nn
-
-lr_model, nn_model = load_models()
-# Configuración del canvas
-st.title("✍️ Dibuja un dígito y compara clasificadores")
-st.markdown("Dibuja un número del 0 al 9 en el lienzo. Ambos modelos intentarán reconocerlo.")
-
-# Canvas para dibujar (280x280 px, escala fácil a 28x28)
-canvas_result = st_canvas(
-    fill_color="rgba(255, 255, 255, 0)",  # Fondo transparente
-    stroke_width=20,
-    stroke_color="black",
-    background_color="white",
-    height=280,
-    width=280,
-    drawing_mode="freedraw",
-    key="canvas",
+from tensorflow.keras.models import load_model
+from utils import (
+    get_evaluation_metrics,
+    plot_confusion_matrix,
+    plot_comparison_chart,
+    plot_per_class_metrics,
+    process_drawing
 )
+from sklearn.metrics import classification_report
 
-# Procesar el dibujo cuando se detecte un cambio
-if canvas_result.image_data is not None:
-    # Convertir a PIL y escalar a 28x28 en escala de grises
-    input_image = Image.fromarray(canvas_result.image_data.astype("uint8"), "RGBA")
-    input_image = input_image.convert("L")  # escala de grises
-    input_image = input_image.resize((28, 28))  # MNIST size
+app = Flask(__name__, static_folder='../app', static_url_path='')
+CORS(app)
 
-    # Convertir a array y normalizar como en el entrenamiento
-    img_array = np.array(input_image)
-    img_array = 255 - img_array  # invertir: fondo blanco -> negro, trazo negro -> blanco
-    img_array = img_array.astype("float32") / 255.0
-    img_flat = img_array.reshape(1, -1)  # (1, 784)
+# Rutas
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, "../models")
+RESULTS_DIR = os.path.join(BASE_DIR, "../results")
 
-    # Predicciones
-    lr_pred_proba = lr_model.predict_proba(img_flat)[0]
-    lr_pred = lr_model.predict(img_flat)[0]
+# Cargar datos y modelos una vez al iniciar
+print("Cargando modelos y datos...")
+y_test = np.load(os.path.join(RESULTS_DIR, "y_test.npy"))
+lr_pred = np.load(os.path.join(RESULTS_DIR, "lr_predictions.npy"))
+nn_pred = np.load(os.path.join(RESULTS_DIR, "nn_predictions.npy"))
 
-    nn_pred_proba = nn_model.predict(img_flat)[0]  # img_flat ya es (1, 784)
-    nn_pred = np.argmax(nn_pred_proba)
+lr_model = joblib.load(os.path.join(MODELS_DIR, "logistic_regression.pkl"))
+nn_model = load_model(os.path.join(MODELS_DIR, "neural_network.h5"))
 
-    # Mostrar imagen dibujada
-    st.image(img_array, caption="Tu dígito (28x28)", width=150)
+# Reportes (solo texto, no gráficos)
+report_dl = classification_report(y_test, nn_pred, output_dict=True)
+report_lr = classification_report(y_test, lr_pred, output_dict=True)
 
-    # Mostrar predicciones
-    col1, col2 = st.columns(2)
-    col1.metric("Regresión Logística", f"{lr_pred}")
-    col2.metric("Red Neuronal", f"{nn_pred}")
+@app.route('/')
+def index():
+    return send_from_directory('../app', 'index.html')
 
-    # Gráfico de probabilidades
-    fig, ax = plt.subplots(2, 1, figsize=(6, 6))
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('../app', path)
 
-    digits = np.arange(10)
-    ax[0].bar(digits, lr_pred_proba, color="steelblue")
-    ax[0].set_title("Regresión Logística - Probabilidades")
-    ax[0].set_ylim(0, 1)
+@app.route('/api/evaluate', methods=['POST'])
+def evaluate():
+    try:
+        # Métricas
+        metrics_dl = get_evaluation_metrics(y_test, nn_pred)
+        metrics_lr = get_evaluation_metrics(y_test, lr_pred)
 
-    ax[1].bar(digits, nn_pred_proba, color="seagreen")
-    ax[1].set_title("Red Neuronal - Probabilidades")
-    ax[1].set_ylim(0, 1)
+        # Gráficos
+        cm_dl_b64 = plot_confusion_matrix(y_test, nn_pred, "Deep Learning")
+        cm_lr_b64 = plot_confusion_matrix(y_test, lr_pred, "Logistic Regression")
+        comparison_b64 = plot_comparison_chart(metrics_dl, metrics_lr)
+        per_class_dl_b64 = plot_per_class_metrics(report_dl, "Deep Learning")
+        per_class_lr_b64 = plot_per_class_metrics(report_lr, "Logistic Regression")
 
-    plt.tight_layout()
-    st.pyplot(fig)
+        return jsonify({
+            "success": True,
+            "metrics_dl": metrics_dl,
+            "metrics_lr": metrics_lr,
+            "confusion_matrix_dl": cm_dl_b64,
+            "confusion_matrix_lr": cm_lr_b64,
+            "comparison_chart": comparison_b64,
+            "per_class_dl": per_class_dl_b64,
+            "per_class_lr": per_class_lr_b64,
+            "report_dl": report_dl,
+            "report_lr": report_lr
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
-# Sección de comparación del dataset (tu código anterior)
-st.markdown("---")
-st.subheader("📊 Resultados en el dataset de prueba (MNIST)")
+@app.route('/api/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.get_json()
+        image_data_url = data['image']
 
-# Cargar datos de prueba y predicciones guardadas
-try:
-    y_test = np.load(os.path.join(results_dir, "y_test.npy"))
-    lr_pred_test = np.load(os.path.join(results_dir, "lr_predictions.npy"))
-    nn_pred_test = np.load(os.path.join(results_dir, "nn_predictions.npy"))
+        # Procesar dibujo
+        img_flat, processed_b64 = process_drawing(image_data_url)
 
-    lr_acc = np.mean(lr_pred_test == y_test)
-    nn_acc = np.mean(nn_pred_test == y_test)
+        # Predicciones
+        lr_proba = lr_model.predict_proba(img_flat)[0]
+        lr_pred_class = int(lr_model.predict(img_flat)[0])
+        lr_conf = float(lr_proba[lr_pred_class])
 
-    col1, col2 = st.columns(2)
-    col1.metric("Precisión LR (test)", f"{lr_acc:.4f}")
-    col2.metric("Precisión NN (test)", f"{nn_acc:.4f}")
+        nn_proba = nn_model.predict(img_flat)[0]
+        nn_pred_class = int(np.argmax(nn_proba))
+        nn_conf = float(nn_proba[nn_pred_class])
 
-except FileNotFoundError:
-    st.warning("Ejecuta 'python train.py' primero para ver los resultados del test.")
+        return jsonify({
+            "success": True,
+            "processed_image": processed_b64,
+            "prediction_dl": {
+                "class": nn_pred_class,
+                "confidence": nn_conf
+            },
+            "prediction_lr": {
+                "class": lr_pred_class,
+                "confidence": lr_conf
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
