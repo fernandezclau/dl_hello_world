@@ -1,37 +1,46 @@
+# MNIST Classifier
 
-# Project structure
+Compares a **logistic regression** model with a small **neural network** (MLP) on handwritten digits from MNIST. A web dashboard shows the evaluation metrics and lets you draw a digit to see what each model predicts.
 
-    mnist-comparison/
-    │
-    ├── data/                          # Datos (opcional si usas datasets integrados)
-    │   └── raw/                       # MNIST crudo (si lo descargas manualmente)
-    │
-    ├── models/                        # Código de los modelos
-    │   ├── __init__.py
-    │   ├── logistic_regression.py     # Clasificador clásico
-    │   └── neural_network.py          # Red neuronal (puede ser con TensorFlow/PyTorch)
-    │
-    ├── notebooks/                     # Para experimentación rápida (opcional)
-    │   └── exploratory_analysis.ipynb
-    │
-    ├── results/                       # Métricas, gráficos, logs
-    │   ├── metrics_logistic.csv
-    │   ├── metrics_nn.csv
-    │   └── confusion_matrices/
-    │
-    ├── app/                           # Aplicación web (front + back ligero)
-    │   ├── static/
-    │   │   └── style.css
-    │   ├── templates/
-    │   │   └── index.html
-    │   └── app.py                     # Backend ligero (Flask/FastAPI)
-    │
-    ├── utils/                         # Funciones auxiliares
-    │   ├── data_loader.py
-    │   └── evaluation.py
-    │
-    ├── train.py                       # Script principal para entrenar ambos modelos
-    ├── requirements.txt               # Dependencias
-    └── README.md                      # Instrucciones para ejecutar el proyecto
+![Preview](docs/preview.png)
 
-streamlit run app/app.py
+| Model               | Test accuracy |
+|---------------------|---------------|
+| Logistic Regression | ~92.6%        |
+| Neural Network      | ~97.5%        |
+
+## Usage
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Train both models. This saves them to `models/` and their predictions to `results/`:
+
+```bash
+mkdir -p models results && python train.py
+```
+
+Start the app, then open http://localhost:5000:
+
+```bash
+python app/app.py
+```
+
+## Dashboard
+
+- **Model Evaluation**: accuracy, precision, recall, F1, and confusion matrices
+- **Interactive Prediction**: draw a digit and compare both models' predictions
+- **Detailed Analysis**: per-class metrics
+
+## Structure
+
+```
+train.py          # trains and saves both models
+app/app.py        # Flask backend (API + serves the page)
+app/utils.py      # metrics, plots, drawing preprocessing
+app/index.html    # frontend
+data/download.py  # optional: export MNIST as PNG images
+```
